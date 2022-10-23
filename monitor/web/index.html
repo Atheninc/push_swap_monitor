@@ -1,0 +1,622 @@
+<html>
+    <head>
+    </head>
+    <body ng-app="app" ng-controller="allCtrl">
+        <div class="ps">
+            <div class="pil_a">
+                <div class="item" ng-repeat="item in p1" style="height:{{item.sz / 2}}px"></div>
+            </div>
+            <div class="pil_b">
+                <div class="item" ng-repeat="item in p2" style="height:{{item.sz / 2}}px"></div>
+            </div>
+        </div>
+
+        <div class="pathError" id="pathError">
+            <label>Mauvais de chemain d'acces!</label>
+        </div>
+        <div class="curv_data">
+            <div class="curv_canvas">
+                <canvas class="canvas_curve">
+                </canvas>
+            </div>
+            <p>Min : {{min_stat}}</p>
+            <p>Min : {{max_stat}}</p>
+            <p>Moy : {{moy_stat}}</p>
+            <p>Med : {{med_stat}}</p>
+            <p>stat : {{ave_stat}}%</p>
+            <div class="progresse_bar" style="width:{{ave_stat}}%"></div>
+        </div>
+
+        <div class="param">
+            <p>path : {{path}}</p>
+            <input type="text" ng-model="path">
+            <p>Tableau : {{number_p}}</p>
+            <input type="range" min="2" max="1000" ng-model="number_p">
+            <p>Iteration : {{iteration}}</p>
+            <input type="range" min="2" max="1000" ng-model="iteration">
+            <p>Lancer</p>
+            <input type="button" value="Simuler" class="simu" ng-click="valideur()">
+        </div>
+
+
+    </body>
+    <script>
+
+        w = 0;
+        h = 0;
+        c = null;
+        can = null;
+        function main()
+        {
+            can = document.querySelector("body > div.curv_data > div > canvas");
+            c = can.getContext("2d");
+            w = can.clientWidth;
+            h = can.clientHeight;
+        }
+        function ClearCanvas()
+        {
+
+            c.fillStyle = "#000";
+            c.fillRect(0, 0, w, h);
+        }
+
+
+        function genData(n)
+        {
+            var tmps = [];
+            var rep = [];
+
+                
+                for (var i = 0; i < n; i++)
+                {
+                    var item = {};
+                    item.value = i;
+                    item.sz = (1 / n * (i + 0.5)) * 180;
+                    tmps.push(item);
+                }
+                while (tmps.length != 0)
+                {
+                    i = Math.floor(Math.random() * tmps.length)
+                    var item = tmps[i];
+                    rep.push(item);
+                    tmps = tmps.slice(0,i).concat(tmps.slice(i + 1))
+                }
+                return rep;
+        }
+
+        async function analyse(n, n2, path = "../push_swap")
+        {
+            ClearCanvas();
+            var lst = [];
+            for (var i = 0; i < n2; i++)
+            {
+                var tmp = genData(n);
+                //console.log(tmp);
+                tmp = await eel.GetData(tmp, path)();
+                //console.log(tmp);
+                var tmps = tmp.split("\n");
+                if (tmps.length < 3)
+                {
+                    tmps = tmp.split(" ");
+                }
+                lst.push(tmps.length);
+                angular.element(document.body).scope().min_stat = getMin(lst);
+                angular.element(document.body).scope().max_stat = getMax(lst);
+                angular.element(document.body).scope().moy_stat = getMoy(lst);
+                angular.element(document.body).scope().med_stat = lst[Math.floor(lst.length / 2)];
+                angular.element(document.body).scope().ave_stat = Math.floor((100 / n2) * i);
+
+
+                displayCurve(lst);
+            }
+            displayCurve(lst);
+        }
+
+        function displayCurve(data)
+        {
+            ClearCanvas();
+            //console.log(data);
+            data = data.sort(function(a, b) {
+                return a - b;
+            });
+            var min = getMin(data);
+            var max = getMax(data);
+            c.beginPath();
+            c.strokeStyle = "#0FF";
+            c.lineWidth = 2;
+            for (var i = 0; i < data.length; i++)
+            {
+                var pos = data[i];
+                var y = Math.floor((1 / (max - min)) * (pos - min) * (h - 20)) + 10;
+                var x = Math.floor((1 / data.length) * i * (w - 20)) + 10;
+                if (i == 0)
+                {
+                    c.moveTo(x, h - y);
+                }
+                else
+                {
+                    //console.log(x + " : " + y);
+                    c.lineTo(x, h - y);
+                }
+            }
+            c.stroke();
+        }
+
+        function getMax(data)
+        {
+            var x = 0;
+            for (var i = 0; i < data.length; i++)
+            {
+                var item = data[i];
+                if (item > x)
+                {
+                    x = item;
+                }
+            }
+            return x;
+        }
+        function getMoy(data)
+        {
+            var x = 0;
+            for (var i = 0; i < data.length; i++)
+            {
+                var item = data[i];
+                x += item
+            }
+            return x / data.length;
+        }
+
+        function getMin(data)
+        {
+            var x = 100000000000000000000000000000000000;
+            for (var i = 0; i < data.length; i++)
+            {
+                var item = data[i];
+                if (item < x)
+                {
+                    x = item;
+                }
+            }
+            return x;
+        }
+        main();
+        displayCurve([5,4,2,1,3,5,6,7,6,3,20,3,4,5,6,8,6,0]);
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script src="/eel.js"></script>
+    <script>
+        var app = angular.module("app", []);
+        app.controller("allCtrl", function($scope, $timeout, $interval){
+            $scope.p1 = [
+            ];
+            $scope.p2 = [
+            ];
+
+            $scope.debug = false;
+
+
+
+            $scope.valideur = function()
+            {
+                $scope.p1 = [];
+                $scope.p2 = [];
+                $scope.gen($scope.number_p);
+                tst();   
+            }
+
+
+            $scope.gen = function(n)
+            {
+                var tmps = [];
+
+                $scope.se = (100 / n);
+                
+                for (var i = 0; i < n; i++)
+                {
+                    var item = {};
+                    item.value = i;
+                    item.sz = (1 / n * (i + 0.5)) * 180;
+                    tmps.push(item);
+                }
+                while (tmps.length != 0)
+                {
+                    i = Math.floor(Math.random() * tmps.length)
+                    var item = tmps[i];
+                    $scope.p1.push(item);
+                    tmps = tmps.slice(0,i).concat(tmps.slice(i + 1))
+                }
+            }
+            $scope.gen(50);
+
+
+            $scope.sa = function()
+            {
+                if ($scope.debug)
+                    console.log("sa");
+                var tmps = $scope.p1;
+                if (tmps.length < 2)
+                    return ;
+                var tmp = tmps[0];
+                tmps[0] = tmps[1];
+                tmps[1] = tmp;
+                $scope.p1 = tmps;
+            }
+            $scope.sb = function()
+            {
+                if ($scope.debug)
+                    console.log("sb");
+                var tmps = $scope.p2;
+                if (tmps.length < 2)
+                    return ;
+                var tmp = tmps[0];
+                tmps[0] = tmps[1];
+                tmps[1] = tmp;
+                $scope.p2 = tmps;
+            }
+            $scope.ra = function()
+            {
+                if ($scope.debug)
+                    console.log("ra");
+                var tmps = $scope.p1;
+                if (tmps.length < 2)
+                    return ;
+                var tmp = tmps[0];
+                tmps = tmps.slice(1);
+                tmps.push(tmp);
+                $scope.p1 = tmps; 
+            }
+            $scope.rb = function()
+            {
+                if ($scope.debug)
+                    console.log("rb");
+                var tmps = $scope.p2;
+                if (tmps.length < 2)
+                    return ;
+                var tmp = tmps[0];
+                tmps = tmps.slice(1);
+                tmps.push(tmp);
+                $scope.p2 = tmps; 
+            }
+            $scope.rra = function()
+            {
+                if ($scope.debug)
+                    console.log("rra");
+                var tmps = $scope.p1;
+                if (tmps.length < 2)
+                    return ;
+                tmps = [tmps[tmps.length - 1]].concat(tmps.slice(0,tmps.length - 1))
+                $scope.p1 = tmps;
+            }
+            $scope.rrb = function()
+            {
+                if ($scope.debug)
+                    console.log("rrb");
+                var tmps = $scope.p2;
+                if (tmps.length < 2)
+                    return ;
+                tmps = [tmps[tmps.length - 1]].concat(tmps.slice(0,tmps.length - 1))
+                $scope.p2 = tmps;
+            }
+            $scope.pa = function()
+            {
+                console.log("pa");
+                var tmps1 = $scope.p1;
+                var tmps2 = $scope.p2;
+                
+                if (tmps2.length != 0)
+                {
+                    tmps1 = [tmps2[0]].concat(tmps1);
+                    if (tmps2.length > 1)
+                    {
+                        tmps2 = tmps2.slice(1);
+                    }
+                    else
+                    {
+                        tmps2 = [];
+                    }
+                    $scope.p1 = tmps1;
+                    $scope.p2 = tmps2;
+                }
+            }
+            $scope.pb = function()
+            {
+                if ($scope.debug)
+                    console.log("pb");
+                var tmps1 = $scope.p1;
+                var tmps2 = $scope.p2;
+                
+                if (tmps1.length != 0)
+                {
+                    tmps2 = [tmps1[0]].concat(tmps2);
+                    if (tmps1.length > 1)
+                    {
+                        tmps1 = tmps1.slice(1);
+                    }
+                    else
+                    {
+                        tmps1 = [];
+                    }
+                    $scope.p1 = tmps1;
+                    $scope.p2 = tmps2;
+                }
+            }
+        
+            console.log("mdr");
+            //tst();
+            $scope.action = function(val)
+            {
+                if (val == "sa")
+                    $scope.sa();
+                if (val == "sb")
+                    $scope.sb();
+                if (val == "ra")
+                    $scope.ra();
+                if (val == "rb")
+                    $scope.rb();
+                if (val == "rra")
+                    $scope.rra();
+                if (val == "rrb")
+                    $scope.rrb();
+                if (val == "pa")
+                    $scope.pa();
+                if (val == "pb")
+                    $scope.pb();
+            }
+            $scope.readAction = function(lst)
+            {
+                //console.log(lst);
+                var tmps = lst.split("\n");
+                if (tmps.length < 3)
+                {
+                    tmps = lst.split(" ");
+                }
+
+                console.log(tmps);
+                $scope.actions = [];
+                for(var i = 0; i < tmps.length; i++)
+                {
+                    $scope.actions.push(tmps[i]);
+                    //$scope.action(tmps[i]);
+                    //$scope.action(tmps[i]);
+                }
+                $scope.moment = 0;
+                $scope.$apply();
+            }
+
+            $interval(function()
+            {
+                try
+                {
+                    var item = $scope.actions[$scope.moment];
+                    $scope.moment++;
+                    $scope.action(item);
+                }
+                catch
+                {
+                    console.log("no set");
+                }
+            }, 10);
+        });
+        async function tst()
+        {
+            var path = angular.element(document.body).scope().path;
+            var lst = angular.element(document.body).scope().p1;
+            rep = await eel.GetData(lst, path)();
+            if (rep == "path Error")
+            {
+                var a = document.getElementById("pathError");
+                a.style.animationName = "none";
+                setTimeout(function(){
+                    a.style.animationName = "errorPathSpawn";
+                }, 100);
+                    //alert("path Error");
+            }
+            //console.log(rep);
+            var v1 = angular.element(document.body).scope().number_p;
+            var v2 = angular.element(document.body).scope().iteration;
+            var v3 = angular.element(document.body).scope().path;
+            analyse(v1, v2, v3);
+            angular.element(document.body).scope().readAction(rep);
+
+        
+        }
+    </script>
+    <style>
+        .progresse_bar
+        {
+            position: absolute;
+            left: 0px;
+            bottom: 0px;
+            height: 8px;
+            background-color: #0FF;
+        }
+.canvas_curve
+{
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+}
+.curv_canvas
+{
+position: relative;
+margin: 40px;
+border: solid 1px #0FF;
+height: 300px;
+background-color: #0FF2;
+width: calc(100% - 80px);
+}
+.curv_data p
+{
+        margin-left: 40px;
+        color: #FFF;
+        font-family: monospace;
+        font-weight: bold;
+        font-size: 20px;
+    }
+        .curv_data
+        {
+            position: absolute;
+            right: 50px;
+            top: 50px;
+            width: 500px;
+            height: 600px;
+            background-color: #0FF2;
+            border: solid 1px #0FF;
+
+        }
+
+        @keyframes pathError
+        {
+            0%
+            {
+                color: #FFF;
+            }
+            50%
+            {
+                color: #F00;
+            }
+            100%
+            {
+                color: #FFF;
+            }
+        }
+        @keyframes errorPathSpawn
+        {
+            0%
+            {
+                top: -50%;
+            }
+            25%
+            {
+                top:25%;
+            }
+            75%
+            {
+                top:25%;
+            }
+            100%
+            {
+                top: -50%;
+            }
+        }
+        .pathError label
+        {
+            animation-name: pathError;
+            animation-duration: 1s;
+            animation-iteration-count: infinite;
+        }
+        .pathError
+        {
+            position: absolute;
+            color: #FFF;
+            left: 50%;
+            top: -25%;
+            transform: translate(-50%, -50%);
+            background-color: #F002;
+            border:solid 1px #F00;
+            text-align: center;
+            width: max-content;
+            height: max-content;
+            padding: 20px;
+            font-size: 40px;
+            font-weight: bold;
+            font-family: monospace;
+
+            animation-name: errorPathSpawn;
+            animation-duration: 2s;
+            animation-iteration-count: 1;
+
+        }
+        .simu
+        {
+            position: relative;
+            left: 20px;
+            width: CALC(100% - 40px);
+            margin: 10px;
+            background-color: #0000;
+            border: solid 6px #2196f3;
+            color: #2196f3;
+            font-weight: bold;
+            font-size: 20px;
+            width: max-content;
+            box-shadow: 0 0 8px 0px #2196f3;
+        }
+        .param input
+        {
+            position: relative;
+            left: 20px;
+            width: CALC(100% - 40px);
+        }
+        .param p
+        {
+            color: #FFF;
+            font-family: monospace;
+            text-align: center;
+            font-weight: bold;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+        .param
+        {
+            position: absolute;
+            left: 0px;
+            top: 0px;
+            height: max-content;
+            width: 300px;
+            border:solid 1px #FFF;
+            background-color: #0FF2;
+        }
+        .item
+        {
+            border-bottom: solid 1px #FFF;
+            position: relative;
+            color: #FFF;
+            min-width: 2px;
+            background-color: #0FF;
+            margin-left: 2px;
+            margin-right: 2px;
+
+            text-align: center;
+        }
+        .pil_b
+        {
+            position: relative;
+            bottom: 0px;
+            width: CALC(100% - 20px);
+            padding: 10px;
+            height: CALC(50% - 20px);
+            display: flex;
+            justify-content: space-around;
+            place-items: flex-end;
+        }
+        .pil_a
+        {
+            position: relative;
+            left: 0px;
+            padding: 10px;
+            top: 0px;
+            border-bottom: solid 1px #FFF;
+            width: CALC(100% - 20px);
+            height: CALC(50% - 20px);
+            display: flex;
+            justify-content: space-around;
+            place-items: flex-end;
+        }
+        .ps
+        {
+            position: absolute;
+            left: 0px;
+            bottom: 0px;
+            width: 100%;
+            height: 300px;
+            border-top: solid 1px #FFF;
+            background-color: #FFF1;
+        }
+        body
+        {
+            background-color: #000;
+        }
+    </style>
+</html>
